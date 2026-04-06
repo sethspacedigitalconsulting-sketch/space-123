@@ -1,0 +1,45 @@
+"""
+Voice AI Lead Qualifier - Core Agent Logic
+"""
+from dataclasses import dataclass
+from enum import Enum
+
+class LeadScore(Enum):
+    HOT = "hot"
+    WARM = "warm"
+    COLD = "cold"
+
+@dataclass
+class Lead:
+    name: str
+    company: str
+    budget: str
+    timeline: str
+    decision_maker: bool
+    score: LeadScore = LeadScore.COLD
+
+QUALIFICATION_QUESTIONS = [
+    {"key": "industry", "question": "What industry is your business in?"},
+    {"key": "challenge", "question": "What's your biggest challenge right now?"},
+    {"key": "timeline", "question": "What's your timeline to solve this?"},
+    {"key": "budget", "question": "What's your budget range?"},
+    {"key": "decision_maker", "question": "Are you the decision-maker?"},
+]
+
+OBJECTION_RESPONSES = {
+    "too expensive": "I understand. Many clients saw 3x ROI in the first quarter.",
+    "need to think": "Fair enough. What specifically would you consider?",
+    "not the right time": "Got it. What timing works better for you?",
+}
+
+def score_lead(budget: str, timeline: str, is_decision_maker: bool) -> LeadScore:
+    score = 0
+    if "k" in budget.lower(): score += 30
+    if timeline in ["immediately", "asap"]: score += 25
+    if is_decision_maker: score += 25
+    if score >= 70: return LeadScore.HOT
+    if score >= 40: return LeadScore.WARM
+    return LeadScore.COLD
+
+if __name__ == "__main__":
+    print("Voice AI Lead Qualifier ready")
