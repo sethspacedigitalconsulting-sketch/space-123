@@ -1,0 +1,74 @@
+{
+  "name": "Voice AI Lead Qualifier Workflow",
+  "nodes": [
+    {
+      "name": "Call Received",
+      "type": "trigger",
+      "position": [0, 0],
+      "parameters": { "webhook": "/webhook/voice-lead" }
+    },
+    {
+      "name": "AI Voice Agent",
+      "type": "chatOpenAi",
+      "position": [250, 0],
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": [{ "role": "system", "content": "You are a professional voice AI assistant qualifying leads. Be friendly, ask qualifying questions, and book appointments for hot leads." }]
+      }
+    },
+    {
+      "name": "Score Lead",
+      "type": "code",
+      "position": [500, 0],
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\nlet score = 0;\nif (data.budget && data.budget.includes('k')) score += 30;\nif (data.timeline && ['asap', 'this week'].includes(data.timeline)) score += 25;\nif (data.decision_maker) score += 25;\nif (data.pain_point) score += 20;\nreturn [{ json: { score, classification: score >= 70 ? 'hot' : score >= 40 ? 'warm' : 'cold' } }];"
+      }
+    },
+    {
+      "name": "Route by Score",
+      "type": "switch",
+      "position": [750, 0],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.classification }}",
+        "rules": {
+          "rules": [
+            { "value2": "hot", "output": 0 },
+            { "value2": "warm", "output": 1 },
+            { "value2": "cold", "output": 2 }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Book Calendar",
+      "type": "googleCalendar",
+      "position": [1000, -150],
+      "parameters": { "operation": "create", "calendar": "primary" }
+    },
+    {
+      "name": "Send SMS",
+      "type": "twilio",
+      "position": [1000, 0],
+      "parameters": { "operation": "send", "message": "Thanks for your call! Your appointment is confirmed." }
+    },
+    {
+      "name": "Add to CRM",
+      "type": "hubspot",
+      "position": [1000, 150],
+      "parameters": { "operation": "create" }
+    }
+  ],
+  "connections": {
+    "Call Received": { "main": [[{ "node": "AI Voice Agent" }]] },
+    "AI Voice Agent": { "main": [[{ "node": "Score Lead" }]] },
+    "Score Lead": { "main": [[{ "node": "Route by Score" }]] },
+    "Route by Score": {
+      "main": [
+        [{ "node": "Book Calendar" }],
+        [{ "node": "Send SMS" }],
+        [{ "node": "Add to CRM" }]
+      ]
+    }
+  }
+}
