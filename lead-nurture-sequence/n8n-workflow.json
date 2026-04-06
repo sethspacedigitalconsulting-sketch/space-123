@@ -1,0 +1,87 @@
+{
+  "name": "Lead Nurture Sequence Workflow",
+  "nodes": [
+    {
+      "name": "New Lead Webhook",
+      "type": "webhook",
+      "position": [0, 0],
+      "parameters": { "path": "new-lead" }
+    },
+    {
+      "name": "Send Day 0 Email",
+      "type": "sendGrid",
+      "position": [250, -100],
+      "parameters": {
+        "to": "={{ $json.email }}",
+        "subject": "Welcome - Here's your free guide"
+      }
+    },
+    {
+      "name": "Add to Tracker",
+      "type": "googleSheets",
+      "position": [250, 100],
+      "parameters": { "operation": "append", "sheet": "Lead Sequences" }
+    },
+    {
+      "name": "Wait 1 Day",
+      "type": "wait",
+      "position": [500, 0],
+      "parameters": { "amount": 1, "unit": "days" }
+    },
+    {
+      "name": "Send Day 1 SMS",
+      "type": "twilio",
+      "position": [750, -150],
+      "parameters": { "message": "Hey {{ $json.name }}, did you get my email?" }
+    },
+    {
+      "name": "Send Day 2 Email",
+      "type": "sendGrid",
+      "position": [750, 0],
+      "parameters": {
+        "to": "={{ $json.email }}",
+        "subject": "How similar companies solved this"
+      }
+    },
+    {
+      "name": "Wait 5 Days",
+      "type": "wait",
+      "position": [1000, 0],
+      "parameters": { "amount": 5, "unit": "days" }
+    },
+    {
+      "name": "Check Engagement",
+      "type": "googleAnalytics",
+      "position": [1250, 0],
+      "parameters": { "operation": "get", "metric": "engagedUsers" }
+    },
+    {
+      "name": "Alert Sales",
+      "type": "slack",
+      "position": [1500, -100],
+      "parameters": {
+        "channel": "#hot-leads",
+        "message": "🔥 Hot lead: {{ $json.name }} from {{ $json.company }}"
+      }
+    },
+    {
+      "name": "Send Urgency SMS",
+      "type": "twilio",
+      "position": [1500, 100],
+      "parameters": { "message": "Offer expires Friday - Let me know if you're interested!" }
+    }
+  ],
+  "connections": {
+    "New Lead Webhook": {
+      "main": [[{ "node": "Send Day 0 Email" }, { "node": "Add to Tracker" }]]
+    },
+    "Send Day 0 Email": { "main": [[{ "node": "Wait 1 Day" }]] },
+    "Add to Tracker": { "main": [[{ "node": "Wait 1 Day" }]] },
+    "Wait 1 Day": { "main": [[{ "node": "Send Day 1 SMS" }, { "node": "Send Day 2 Email" }]] },
+    "Send Day 2 Email": { "main": [[{ "node": "Wait 5 Days" }]] },
+    "Wait 5 Days": { "main": [[{ "node": "Check Engagement" }]] },
+    "Check Engagement": {
+      "main": [[{ "node": "Alert Sales" }, { "node": "Send Urgency SMS" }]]
+    }
+  }
+}
