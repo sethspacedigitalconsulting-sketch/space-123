@@ -1,0 +1,29 @@
+# Voice AI Lead Qualifier
+
+AI-powered voice agent that answers calls, qualifies leads, handles objections, and books appointments - 24/7.
+
+## What It Does
+- Answers incoming calls
+- Qualifies leads (budget, timeline, pain points)
+- Handles common objections
+- Books appointments automatically
+- Sends SMS confirmation
+
+## Tech Stack
+VAPI/Retell AI + OpenAI GPT-4 + Google Calendar + HubSpot
+
+## Results
+| Metric | Before | After |
+|--------|--------|-------|
+| Lead response time | 2-4 hours | Instant |
+| Qualification rate | 23% | 67% |
+| Appointment show rate | 45% | 78% |
+| Monthly demos | 12 | 47 |
+
+## Files
+- `qualifier_agent.py` - Core qualification logic
+- `workflow.json` - n8n workflow template
+
+---
+
+Built by [Space Digital & AI Consulting](https://hoo.be/spacedigitalconsulting)
