@@ -1,0 +1,114 @@
+{
+  "name": "CRM Auto-Enrichment Workflow",
+  "nodes": [
+    {
+      "name": "New Lead Webhook",
+      "type": "webhook",
+      "position": [0, 0],
+      "parameters": { "path": "new-lead-enrich" }
+    },
+    {
+      "name": "Enrich with Apollo",
+      "type": "httpRequest",
+      "position": [250, -100],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/v1/people/enrich",
+        "headers": { "Authorization": "Bearer {{ $env.APOLLO_API_KEY }}" },
+        "body": { "email": "={{ $json.email }}" }
+      }
+    },
+    {
+      "name": "Enrich with Clearbit",
+      "type": "httpRequest",
+      "position": [250, 100],
+      "parameters": {
+        "method": "GET",
+        "url": "https://person.clearbit.com/v2/combined/find?email={{ $json.email }}"
+      }
+    },
+    {
+      "name": "Merge Data",
+      "type": "set",
+      "position": [500, 0],
+      "parameters": {
+        "values": {
+          "name": "={{ $('Enrich with Apollo').json.name }}",
+          "company": "={{ $('Enrich with Apollo').json.company || $('Enrich with Clearbit').json.company.name }}",
+          "linkedin": "={{ $('Enrich with Apollo').json.linkedin_url }}",
+          "company_size": "={{ $('Enrich with Clearbit').json.company.metrics.employees }}"
+        }
+      }
+    },
+    {
+      "name": "Calculate Score",
+      "type": "code",
+      "position": [750, 0],
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\nlet score = 0;\nif (data.name) score += 20;\nif (data.company) score += 20;\nif (data.linkedin) score += 15;\nif (data.company_size) score += 15;\nif (data.industry) score += 10;\nif (data.revenue) score += 10;\nreturn [{ json: { score: Math.min(score, 100), classification: score >= 70 ? 'hot' : score >= 40 ? 'warm' : 'cold' } }];"
+      }
+    },
+    {
+      "name": "Route by Score",
+      "type": "switch",
+      "position": [1000, 0],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.classification }}",
+        "rules": {
+          "rules": [
+            { "value2": "hot", "output": 0 },
+            { "value2": "warm", "output": 1 },
+            { "value2": "cold", "output": 2 }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Hot Lead in CRM",
+      "type": "hubspot",
+      "position": [1250, -150],
+      "parameters": {
+        "operation": "create",
+        "additionalFields": { "lead_priority": "hot" }
+      }
+    },
+    {
+      "name": "Alert Sales",
+      "type": "slack",
+      "position": [1250, -50],
+      "parameters": {
+        "channel": "#hot-leads",
+        "message": "🔥 Hot lead enriched: {{ $json.name }} at {{ $json.company }}. Score: {{ $json.score }}"
+      }
+    },
+    {
+      "name": "Create Warm Lead in CRM",
+      "type": "hubspot",
+      "position": [1250, 50],
+      "parameters": { "operation": "create" }
+    },
+    {
+      "name": "Flag Cold Lead",
+      "type": "googleSheets",
+      "position": [1250, 150],
+      "parameters": { "operation": "append", "sheet": "Needs Research" }
+    }
+  ],
+  "connections": {
+    "New Lead Webhook": {
+      "main": [[{ "node": "Enrich with Apollo" }, { "node": "Enrich with Clearbit" }]]
+    },
+    "Enrich with Apollo": { "main": [[{ "node": "Merge Data" }]] },
+    "Enrich with Clearbit": { "main": [[{ "node": "Merge Data" }]] },
+    "Merge Data": { "main": [[{ "node": "Calculate Score" }]] },
+    "Calculate Score": { "main": [[{ "node": "Route by Score" }]] },
+    "Route by Score": {
+      "main": [
+        [{ "node": "Create Hot Lead in CRM" }, { "node": "Alert Sales" }],
+        [{ "node": "Create Warm Lead in CRM" }],
+        [{ "node": "Flag Cold Lead" }]
+      ]
+    }
+  }
+}
